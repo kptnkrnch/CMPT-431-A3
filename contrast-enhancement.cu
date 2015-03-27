@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <cmath>
 #include "hist-equ.cuh"
 
 PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
@@ -288,23 +289,28 @@ PPM_IMG yuv2rgb(YUV_IMG img_in)
 }
 
 
-void gpu_contrast_enhancement_g(PGM_IMG img_in)
+PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
-    int hist[256];
+    int * hist = (int*)malloc(sizeof(int) * 256);
 	int img_size = 0;
 	int grey_count = 0;
     
-	unsigned char * cuda_img = 0;
+	unsigned char * cuda_img_in = 0;
+	//unsigned char * img_in = 0;
+	unsigned char * cuda_img_out = 0;
+	//unsigned char * img_out = 0;
 	int * cuda_img_size = 0;
 	int * cuda_grey_count = 0;
 	int * cuda_hist = 0;
+	
 
     result.w = img_in.w;
     result.h = img_in.h;
     result.img = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
     
-	cudaMalloc(&cuda_img, sizeof(unsigned char) * result.w * result.h);
+	cudaMalloc(&cuda_img_in, sizeof(unsigned char) * result.w * result.h);
+	cudaMalloc(&cuda_img_out, sizeof(unsigned char) * result.w * result.h);
 	cudaMalloc(&cuda_img_size, sizeof(int));
 	cudaMalloc(&cuda_grey_count, sizeof(int));
 	cudaMalloc(&cuda_hist, sizeof(int) * 256);
@@ -312,14 +318,43 @@ void gpu_contrast_enhancement_g(PGM_IMG img_in)
 	img_size = img_in.h * img_in.w;
 	grey_count = 256;
 
-	cudaMemcpy(cuda_img, img_in.img, sizeof(unsigned char) * result.w * result.h, cudaMemcpyHostToDevice);
+	int * debug = (int *)malloc(sizeof(int));
+	*debug = 0;
+	int * cuda_debug = 0;
+	cudaMalloc(&cuda_debug, sizeof(int));
+
+	cudaMemcpy(cuda_img_in, img_in.img, sizeof(unsigned char) * result.w * result.h, cudaMemcpyHostToDevice);
 	cudaMemcpy(cuda_img_size, &img_size, sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(cuda_grey_count, &grey_count, sizeof(int), cudaMemcpyHostToDevice);
 
-	if (img_size >= grey_count) {
-		gpu_histogram<<< 1, img_size >>>(cuda_hist, cuda_img, cuda_img_size, cuda_grey_count);
-	} else {
-		gpu_histogram<<< 1, grey_count >>>(cuda_hist, cuda_img, cuda_img_size, cuda_grey_count);
+	for (int i = 0; i < 256; i++) {
+		hist[i] = 1;
 	}
+	cudaMemcpy(cuda_hist, hist, sizeof(int) * 256, cudaMemcpyHostToDevice);
+
+	if (img_size >= grey_count) {
+		int block_count = (int)ceil((float)img_size / MAXTHREADS);
+		gpu_histogram<<< block_count, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count, cuda_debug);
+		cudaMemcpy(debug, cuda_debug, sizeof(int), cudaMemcpyDeviceToHost);
+		printf("DEBUG - %d\n", *debug);
+	} else {
+		gpu_histogram<<< 1, grey_count >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count, cuda_debug);
+	}
+	//cudaMemset(cuda_hist, 0, sizeof(int) * 256);
+	cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
+	
+	gpu_histogram_equalization(result.img, img_in.img, hist, img_size, grey_count);
+
+	//cudaMemcpy(result.img, cuda_img_out, sizeof(unsigned char) * result.w * result.h, cudaMemcpyDeviceToHost);
     //histogram_equalization(result.img,img_in.img,hist,result.w*result.h, 256);
+
+	cudaFree(cuda_debug);
+	cudaFree(cuda_img_in);
+	cudaFree(cuda_img_out);
+	cudaFree(cuda_img_size);
+	cudaFree(cuda_grey_count);
+	cudaFree(cuda_hist);
+	free(hist);
+
+	return result;
 }

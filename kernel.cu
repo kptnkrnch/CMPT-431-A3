@@ -45,7 +45,7 @@ void run_gpu_gray_test(PGM_IMG img_in)
 	unsigned int timer = 0;
     PGM_IMG img_obuf;
 
-    img_obuf = contrast_enhancement_g(img_in);
+    img_obuf = gpu_contrast_enhancement_g(img_in);
     
     write_pgm(img_obuf, "gpu_out.pgm");
     free_pgm(img_obuf);

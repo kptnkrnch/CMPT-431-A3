@@ -3,6 +3,8 @@
 
 #include <cuda_runtime.h>
 
+#define MAXTHREADS 1024
+
 typedef struct{
     int w;
     int h;
@@ -54,10 +56,15 @@ PPM_IMG yuv2rgb(YUV_IMG img_in);
 void histogram(int * hist_out, unsigned char * img_in, int img_size, int nbr_bin);
 void histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin);
-__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin);
+__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin, int * debug);
+void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
+                            int * hist_in, int img_size, int nbr_bin);
+__global__ void gpu_histogram_equalization_lutcalc(int * cdf, int * hist_in, int * lut, int * img_size, int * nbr_bin);
+__global__ void gpu_histogram_equalization_imgoutcalc(unsigned char * img_out, unsigned char * img_in, int * lut, int * img_size);
 
 //Contrast enhancement for gray-scale images
 PGM_IMG contrast_enhancement_g(PGM_IMG img_in);
+PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in);
 
 //Contrast enhancement for color images
 PPM_IMG contrast_enhancement_c_rgb(PPM_IMG img_in);
