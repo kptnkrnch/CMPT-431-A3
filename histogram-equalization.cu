@@ -27,7 +27,6 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         min = hist_in[i++];
     }
     d = img_size - min;
-	printf("CPU lut:\n");
     for(i = 0; i < nbr_bin; i ++){
         cdf += hist_in[i];
         //lut[i] = (cdf - min)*(nbr_bin - 1)/d;
@@ -35,7 +34,6 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         if(lut[i] < 0){
             lut[i] = 0;
         }
-        printf("[%d] - %d\n", i, lut[i]);
         
     }
     
@@ -51,7 +49,7 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
     }
 }
 
-__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin, int * debug){
+__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin){
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
 	
     //for ( i = 0; i < nbr_bin; i ++){
@@ -64,11 +62,6 @@ __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_
 	/*if (id < *img_size) {
         hist_out[img_in[id]] ++;
 	}*/
-	if (id > 1024) {
-		*debug = 777;
-	} else {
-		*debug = 666;
-	}
     //}
 }
 
@@ -120,20 +113,14 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 	for(i = 1; i < nbr_bin; i++){
         cdf[i] = hist_in[i] + cdf[i - 1];
 	}
-	printf("GPU:\n");
-	for (int i = 0; i < 256; i++) {
-		printf("[%d] - %d\n", i, cdf[i]);
-	}
+
 	cudaMemset(g_lut, 1, sizeof(int) * nbr_bin);
 	cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice);
 
 	gpu_histogram_equalization_lutcalc<<< 1, MAXTHREADS >>>(g_cdf, g_hist_in, g_lut, g_img_size, g_nbr_bin, g_min);
 
 	cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost);
-	printf("GPU lut:\n");
-	for (int i = 0; i < 256; i++) {
-		printf("[%d] - %d\n", i, lut[i]);
-	}
+
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
 	gpu_histogram_equalization_imgoutcalc<<< block_count, MAXTHREADS >>>(g_img_out, g_img_in, g_lut, g_img_size);
 
@@ -151,6 +138,9 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 	free(lut);
 	cudaFree(g_lut);
 	cudaFree(g_cdf);
+	cudaFree(g_img_out);
+	cudaFree(g_img_in);
+	cudaFree(g_hist_in);
 	cudaFree(g_img_size);
 	cudaFree(g_nbr_bin);
 }
@@ -182,13 +172,9 @@ __global__ void gpu_histogram_equalization_lutcalc(int * cdf,
 __global__ void gpu_histogram_equalization_imgoutcalc(unsigned char * img_out, unsigned char * img_in, 
                             int * lut, int * img_size){
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	int l = 0;
-	unsigned char c = '\0';
+	
 	if (i < *img_size) {
-    //for(i = 0; i < *img_size; i ++){
-        /*c = img_in[i];
-		l = lut[(int)c];
-        img_out[i] = (unsigned char)l;*/
+    
         img_out[i] = (unsigned char)lut[(int)img_in[i]];
         
     }
