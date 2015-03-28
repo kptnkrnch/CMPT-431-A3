@@ -59,7 +59,7 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin, int * debug);
 void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin);
-__global__ void gpu_histogram_equalization_lutcalc(int * cdf, int * hist_in, int * lut, int * img_size, int * nbr_bin);
+__global__ void gpu_histogram_equalization_lutcalc(int * cdf, int * hist_in, int * lut, int * img_size, int * nbr_bin, int * min);
 __global__ void gpu_histogram_equalization_imgoutcalc(unsigned char * img_out, unsigned char * img_in, int * lut, int * img_size);
 
 //Contrast enhancement for gray-scale images

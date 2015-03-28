@@ -14,6 +14,10 @@ PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
     result.img = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
     
     histogram(hist, img_in.img, img_in.h * img_in.w, 256);
+	printf("CPU HIST:\n");
+	for (int i = 0; i < 256; i++) {
+		printf("[%d] - %d\n", i, hist[i]);
+	}
     histogram_equalization(result.img,img_in.img,hist,result.w*result.h, 256);
     return result;
 }
@@ -52,6 +56,7 @@ PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
     y_equ = (unsigned char *)malloc(yuv_med.h*yuv_med.w*sizeof(unsigned char));
     
     histogram(hist, yuv_med.img_y, yuv_med.h * yuv_med.w, 256);
+	
     histogram_equalization(y_equ,yuv_med.img_y,hist,yuv_med.h * yuv_med.w, 256);
 
     free(yuv_med.img_y);
@@ -292,7 +297,7 @@ PPM_IMG yuv2rgb(YUV_IMG img_in)
 PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
-    int * hist = (int*)malloc(sizeof(int) * 256);
+    int hist[256];
 	int img_size = 0;
 	int grey_count = 0;
     
@@ -328,7 +333,7 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	cudaMemcpy(cuda_grey_count, &grey_count, sizeof(int), cudaMemcpyHostToDevice);
 
 	for (int i = 0; i < 256; i++) {
-		hist[i] = 1;
+		hist[i] = 0;
 	}
 	cudaMemcpy(cuda_hist, hist, sizeof(int) * 256, cudaMemcpyHostToDevice);
 
@@ -338,10 +343,17 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 		cudaMemcpy(debug, cuda_debug, sizeof(int), cudaMemcpyDeviceToHost);
 		printf("DEBUG - %d\n", *debug);
 	} else {
-		gpu_histogram<<< 1, grey_count >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count, cuda_debug);
+		gpu_histogram<<< 1, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count, cuda_debug);
 	}
 	//cudaMemset(cuda_hist, 0, sizeof(int) * 256);
-	cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
+	//cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
+	for ( int i = 0; i < img_size; i ++){
+		hist[img_in.img[i]] ++;
+	}
+	printf("GPU HIST:\n");
+	for (int i = 0; i < 256; i++) {
+		printf("[%d] - %d\n", i, hist[i]);
+	}
 	
 	gpu_histogram_equalization(result.img, img_in.img, hist, img_size, grey_count);
 
@@ -354,7 +366,7 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	cudaFree(cuda_img_size);
 	cudaFree(cuda_grey_count);
 	cudaFree(cuda_hist);
-	free(hist);
+	//free(hist);
 
 	return result;
 }
