@@ -45,12 +45,23 @@ void run_gpu_gray_test(PGM_IMG img_in)
 	unsigned int timer = 0;
     PGM_IMG img_obuf;
 
+    cudaEvent_t start, end;
+    float elapsedTime;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start,0);
+
     img_obuf = gpu_contrast_enhancement_g(img_in);
+
+    cudaEventRecord(end,0);
+    cudaEventSynchronize(end);
+    cudaEventElapsedTime(&elapsedTime, start, end);
+    printf("GPU Gray time: %fms\n", elapsedTime);
     
     write_pgm(img_obuf, "gpu_out.pgm");
     free_pgm(img_obuf);
-
-    img_in = img_in; // To avoid warning...
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
 }
 
 void run_cpu_color_test(PPM_IMG img_in)
@@ -93,15 +104,23 @@ void run_cpu_gray_test(PGM_IMG img_in)
     
     printf("Starting CPU processing...\n");
     
-    //cutilCheckError(cutCreateTimer(&timer));
-    //cutilCheckError(cutStartTimer(timer));
+    cudaEvent_t start, end;
+    float elapsedTime;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start,0);
+
     img_obuf = contrast_enhancement_g(img_in);
-    //cutilCheckError(cutStopTimer(timer));
-    //printf("Processing time: %f (ms)\n", cutGetTimerValue(timer));
-    //cutilCheckError(cutDeleteTimer(timer));
+
+    cudaEventRecord(end,0);
+    cudaEventSynchronize(end);
+    cudaEventElapsedTime(&elapsedTime, start, end);
+    printf("GPU Color time: %fms\n", elapsedTime);
     
     write_pgm(img_obuf, "out.pgm");
     free_pgm(img_obuf);
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
 }
 
 
