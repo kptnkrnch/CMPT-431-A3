@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-//#include <cutil_inline.h>
 #include "hist-equ.cuh"
+#include <chrono>
+#include <iostream>
 
 void run_cpu_color_test(PPM_IMG img_in);
 void run_gpu_color_test(PPM_IMG img_in);
 void run_cpu_gray_test(PGM_IMG img_in);
 void run_gpu_gray_test(PGM_IMG img_in);
+
+#define MSEC 1000
 
 
 int main(){
@@ -34,15 +37,29 @@ void run_gpu_color_test(PPM_IMG img_in)
     printf("Starting GPU processing...\n");
     //TODO: run your GPU implementation here
 
+    cudaEvent_t start, end;
+    float elapsedTime;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start,0);
+
     img_in = img_in; // To avoid warning...
+
+    cudaEventRecord(end,0);
+    cudaEventSynchronize(end);
+    cudaEventElapsedTime(&elapsedTime, start, end);
+    printf("\tGPU Color time: %fms\n", elapsedTime);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(end);
+
+
 }
 
 void run_gpu_gray_test(PGM_IMG img_in)
 {
     printf("Starting GPU processing...\n");
-    //TODO: run your GPU implementation here
 
-	unsigned int timer = 0;
     PGM_IMG img_obuf;
 
     cudaEvent_t start, end;
@@ -56,7 +73,7 @@ void run_gpu_gray_test(PGM_IMG img_in)
     cudaEventRecord(end,0);
     cudaEventSynchronize(end);
     cudaEventElapsedTime(&elapsedTime, start, end);
-    printf("GPU Gray time: %fms\n", elapsedTime);
+    printf("\tGPU Gray time: %fms\n", elapsedTime);
     
     write_pgm(img_obuf, "gpu_out.pgm");
     free_pgm(img_obuf);
@@ -66,26 +83,23 @@ void run_gpu_gray_test(PGM_IMG img_in)
 
 void run_cpu_color_test(PPM_IMG img_in)
 {
-    unsigned int timer = 0;
     PPM_IMG img_obuf_hsl, img_obuf_yuv;
     
     printf("Starting CPU processing...\n");
     
-    //cutilCheckError(cutCreateTimer(&timer));
-    //cutilCheckError(cutStartTimer(timer));
+    auto start_hsl = std::chrono::steady_clock::now();
     img_obuf_hsl = contrast_enhancement_c_hsl(img_in);
-    //cutilCheckError(cutStopTimer(timer));
-    //printf("HSL processing time: %f (ms)\n", cutGetTimerValue(timer));
-    //cutilCheckError(cutDeleteTimer(timer));
+    auto end_hsl = std::chrono::steady_clock::now();
+    auto elapsed_hsl = std::chrono::duration_cast<std::chrono::milliseconds>(end_hsl - start_hsl);
+    std::cout << "\tCPU Color HSL time: " << elapsed_hsl.count() << "ms" << std::endl;
     
     write_ppm(img_obuf_hsl, "out_hsl.ppm");
 
-    //cutilCheckError(cutCreateTimer(&timer));
-    //cutilCheckError(cutStartTimer(timer));
+    auto start_yuv = std::chrono::steady_clock::now();
     img_obuf_yuv = contrast_enhancement_c_yuv(img_in);
-    //cutilCheckError(cutStopTimer(timer));
-    //printf("YUV processing time: %f (ms)\n", cutGetTimerValue(timer));
-    //cutilCheckError(cutDeleteTimer(timer));
+    auto end_yuv = std::chrono::steady_clock::now();
+    auto elapsed_yuv = std::chrono::duration_cast<std::chrono::milliseconds>(end_yuv - start_yuv);
+    std::cout << "\tCPU Color YUV time: " << elapsed_yuv.count() << "ms" << std::endl;
     
     write_ppm(img_obuf_yuv, "out_yuv.ppm");
     
@@ -98,29 +112,18 @@ void run_cpu_color_test(PPM_IMG img_in)
 
 void run_cpu_gray_test(PGM_IMG img_in)
 {
-    unsigned int timer = 0;
     PGM_IMG img_obuf;
     
-    
     printf("Starting CPU processing...\n");
-    
-    cudaEvent_t start, end;
-    float elapsedTime;
-    cudaEventCreate(&start);
-    cudaEventCreate(&end);
-    cudaEventRecord(start,0);
 
+    auto start = std::chrono::steady_clock::now();
     img_obuf = contrast_enhancement_g(img_in);
-
-    cudaEventRecord(end,0);
-    cudaEventSynchronize(end);
-    cudaEventElapsedTime(&elapsedTime, start, end);
-    printf("GPU Color time: %fms\n", elapsedTime);
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "\tCPU Graytime: " << elapsed.count() << "ms" << std::endl;
     
     write_pgm(img_obuf, "out.pgm");
     free_pgm(img_obuf);
-    cudaEventDestroy(start);
-    cudaEventDestroy(end);
 }
 
 
