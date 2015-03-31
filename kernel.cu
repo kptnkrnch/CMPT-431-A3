@@ -35,25 +35,38 @@ int main(){
 void run_gpu_color_test(PPM_IMG img_in)
 {
     printf("Starting GPU processing...\n");
-    //TODO: run your GPU implementation here
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // PPM_IMG img_obuf_hsl, img_obuf_yuv;
 
-    cudaEvent_t start, end;
-    float elapsedTime;
-    cudaEventCreate(&start);
-    cudaEventCreate(&end);
-    cudaEventRecord(start,0);
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
+    // cudaEventRecord(start,0);
 
-    img_in = img_in; // To avoid warning...
+    // img_obuf_hsl = gpu_contrast_enhancement_c_hsl(img_in);
 
-    cudaEventRecord(end,0);
-    cudaEventSynchronize(end);
-    cudaEventElapsedTime(&elapsedTime, start, end);
-    printf("\tGPU Color time: %fms\n", elapsedTime);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tGPU Color HSL time: %fms\n", elapsedTime);
+    // write_ppm(img_obuf_hsl, "gpu_out_hsl.ppm");
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(end);
+    img_in = img_in;
 
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
+    // cudaEventRecord(start,0);
+    // img_obuf_yuv = gpu_contrast_enhancement_c_yuv(img_in);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tGPU Color YUV time: %fms\n", elapsedTime);
+    // write_ppm(img_obuf_yuv, "gpu_out_yuv.ppm");
 
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
+    // free_ppm(img_obuf_hsl);
+    // free_ppm(img_obuf_yuv);
 }
 
 void run_gpu_gray_test(PGM_IMG img_in)
@@ -93,7 +106,7 @@ void run_cpu_color_test(PPM_IMG img_in)
     auto elapsed_hsl = std::chrono::duration_cast<std::chrono::milliseconds>(end_hsl - start_hsl);
     std::cout << "\tCPU Color HSL time: " << elapsed_hsl.count() << "ms" << std::endl;
     
-    write_ppm(img_obuf_hsl, "out_hsl.ppm");
+    write_ppm(img_obuf_hsl, "cpu_out_hsl.ppm");
 
     auto start_yuv = std::chrono::steady_clock::now();
     img_obuf_yuv = contrast_enhancement_c_yuv(img_in);
@@ -101,7 +114,7 @@ void run_cpu_color_test(PPM_IMG img_in)
     auto elapsed_yuv = std::chrono::duration_cast<std::chrono::milliseconds>(end_yuv - start_yuv);
     std::cout << "\tCPU Color YUV time: " << elapsed_yuv.count() << "ms" << std::endl;
     
-    write_ppm(img_obuf_yuv, "out_yuv.ppm");
+    write_ppm(img_obuf_yuv, "cpu_out_yuv.ppm");
     
     free_ppm(img_obuf_hsl);
     free_ppm(img_obuf_yuv);
@@ -122,7 +135,7 @@ void run_cpu_gray_test(PGM_IMG img_in)
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "\tCPU Graytime: " << elapsed.count() << "ms" << std::endl;
     
-    write_pgm(img_obuf, "out.pgm");
+    write_pgm(img_obuf, "cpu_out.pgm");
     free_pgm(img_obuf);
 }
 

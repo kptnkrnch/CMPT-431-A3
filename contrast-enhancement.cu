@@ -19,6 +19,8 @@ PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
     return result;
 }
 
+/*
+//not called anywhere nor does it seem we even want to use this. keep just in case
 PPM_IMG contrast_enhancement_c_rgb(PPM_IMG img_in)
 {
     PPM_IMG result;
@@ -39,6 +41,7 @@ PPM_IMG contrast_enhancement_c_rgb(PPM_IMG img_in)
 
     return result;
 }
+*/
 
 
 PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
@@ -354,4 +357,128 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	//free(hist);
 
 	return result;
+}
+
+
+PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
+{
+    YUV_IMG yuv_med;
+    PPM_IMG result;
+    
+    unsigned char * y_equ;
+    int hist[256];
+
+    
+    yuv_med = rgb2yuv(img_in);
+
+
+    y_equ = (unsigned char *)malloc(yuv_med.h*yuv_med.w*sizeof(unsigned char));
+    
+    histogram(hist, yuv_med.img_y, yuv_med.h * yuv_med.w, 256);
+    
+    gpu_histogram_equalization(y_equ, yuv_med.img_y, hist, yuv_med.h * yuv_med.w, 256);
+
+    free(yuv_med.img_y);
+    yuv_med.img_y = y_equ;
+    
+    result = yuv2rgb(yuv_med);
+
+    //result image cliping has to be done outside above function as contains an if statement which will hurt performance in gpu
+    for(int i = 0; i < result.w*result.h; i ++){
+        result.img_r[i] = clip_rgb(result.img_r[i]);
+        result.img_g[i] = clip_rgb(result.img_g[i]);
+        result.img_b[i] = clip_rgb(result.img_b[i]);
+    }
+
+    free(yuv_med.img_y);
+    free(yuv_med.img_u);
+    free(yuv_med.img_v);
+    
+    return result;
+}
+
+PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
+{
+    HSL_IMG hsl_med;
+    PPM_IMG result;
+    
+    unsigned char * l_equ;
+    int hist[256];
+
+    hsl_med = rgb2hsl(img_in);
+    l_equ = (unsigned char *)malloc(hsl_med.height*hsl_med.width*sizeof(unsigned char));
+
+    histogram(hist, hsl_med.l, hsl_med.height * hsl_med.width, 256);
+
+    gpu_histogram_equalization(l_equ, hsl_med.l,hist,hsl_med.width*hsl_med.height, 256);
+    
+    free(hsl_med.l);
+    hsl_med.l = l_equ;
+
+    result = hsl2rgb(hsl_med);
+
+    free(hsl_med.h);
+    free(hsl_med.s);
+    free(hsl_med.l);
+    return result;
+}
+
+
+//Convert RGB to YUV, all components in [0, 255]
+__global__ void gpu_rgb2yuv(PPM_IMG img_in)
+{
+    YUV_IMG img_out;
+    int i;//, j;
+    unsigned char r, g, b;
+    unsigned char y, cb, cr;
+    
+    img_out.w = img_in.w;
+    img_out.h = img_in.h;
+    img_out.img_y = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+    img_out.img_u = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+    img_out.img_v = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+
+    for(i = 0; i < img_out.w*img_out.h; i ++){
+        r = img_in.img_r[i];
+        g = img_in.img_g[i];
+        b = img_in.img_b[i];
+        
+        y  = (unsigned char)( 0.299*r + 0.587*g +  0.114*b);
+        cb = (unsigned char)(-0.169*r - 0.331*g +  0.499*b + 128);
+        cr = (unsigned char)( 0.499*r - 0.418*g - 0.0813*b + 128);
+        
+        img_out.img_y[i] = y;
+        img_out.img_u[i] = cb;
+        img_out.img_v[i] = cr;
+    }
+    
+   // return img_out;
+}
+
+//Convert YUV to RGB, all components in [0, 255]
+__global__ void gpu_yuv2rgb(YUV_IMG img_in)
+{
+    PPM_IMG img_out;
+    int i;
+    int  rt,gt,bt;
+    int y, cb, cr;
+    
+    
+    img_out.w = img_in.w;
+    img_out.h = img_in.h;
+    img_out.img_r = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+    img_out.img_g = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+    img_out.img_b = (unsigned char *)malloc(sizeof(unsigned char)*img_out.w*img_out.h);
+
+    for(i = 0; i < img_out.w*img_out.h; i ++){
+        y  = (int)img_in.img_y[i];
+        cb = (int)img_in.img_u[i] - 128;
+        cr = (int)img_in.img_v[i] - 128;
+        
+        rt  = (int)( y + 1.402*cr);
+        gt  = (int)( y - 0.344*cb - 0.714*cr);
+        bt  = (int)( y + 1.772*cb);
+    }
+    
+    //return img_out;
 }
