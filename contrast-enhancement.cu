@@ -390,7 +390,7 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 {
     //host vars
     YUV_IMG* yuv_med;
-    PPM_IMG* result;
+    PPM_IMG result;
     unsigned char * y_equ;
     int hist[256];
     int image_size = img_in.w * img_in.h;
@@ -488,10 +488,9 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
     printf("\tafter yuv2rgb....\n");
 
-    result = (PPM_IMG*)malloc(sizeof(PPM_IMG));
-    result->img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
-    result->img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
-    result->img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    result.img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
 
     printf("\tafter malloc....\n");
 
@@ -503,9 +502,9 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
     //result image cliping has to be done outside above function as contains an if statement which will hurt performance in gpu
     for(int i = 0; i < image_size; i ++){
-        result->img_r[i] = clip_rgb(result->img_r[i]);
-        result->img_g[i] = clip_rgb(result->img_g[i]);
-        result->img_b[i] = clip_rgb(result->img_b[i]);
+        result.img_r[i] = clip_rgb(result.img_r[i]);
+        result.img_g[i] = clip_rgb(result.img_g[i]);
+        result.img_b[i] = clip_rgb(result.img_b[i]);
     }
 
     free(yuv_med->img_y);
@@ -524,9 +523,9 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
     printf("\thit end :)\n");
 
+
     
-    
-    return *result;
+    return result;
 }
 
 
