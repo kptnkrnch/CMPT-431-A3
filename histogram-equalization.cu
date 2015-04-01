@@ -93,12 +93,14 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 
 	unsigned char *g_img_in = 0;
 	err = cudaMalloc(&g_img_in, sizeof(unsigned char) * img_size);
-	if (err != cudaSuccess) {
+	if (err == cudaErrorMemoryAllocation) {
+        printf("\texit 2\n");
 		exit(2);
 	}
 	unsigned char *g_img_out = 0;
 	err = cudaMalloc(&g_img_out, sizeof(unsigned char) * img_size);
-	if (err != cudaSuccess) {
+	if (err == cudaErrorMemoryAllocation) {
+        printf("\texit 1\n");
 		exit(1);
 	}
 	cudaMemcpy(g_img_in, img_in, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice);
@@ -114,15 +116,21 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         cdf[i] = hist_in[i] + cdf[i - 1];
 	}
 
+    printf("\tafter loop....\n");
+
 	cudaMemset(g_lut, 1, sizeof(int) * nbr_bin);
 	cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice);
 
 	gpu_histogram_equalization_lutcalc<<< 1, MAXTHREADS >>>(g_cdf, g_hist_in, g_lut, g_img_size, g_nbr_bin, g_min);
 
+    printf("\tafter gpu_histogram_equalization_lutcalc....\n");
+
 	cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost);
 
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
 	gpu_histogram_equalization_imgoutcalc<<< block_count, MAXTHREADS >>>(g_img_out, g_img_in, g_lut, g_img_size);
+
+    printf("\tafter gpu_histogram_equalization_imgoutcalc....\n");
 
 	cudaMemcpy(img_out, g_img_out, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost);
 	/*for(i = 0; i < img_size; i ++){
@@ -150,7 +158,6 @@ __global__ void gpu_histogram_equalization_lutcalc(int * cdf,
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
     
 	if (id < *nbr_bin) {
-		int i = 0;
 		/*int mmin = *min;
 		while(mmin == 0){
 			mmin = hist_in[i++];
