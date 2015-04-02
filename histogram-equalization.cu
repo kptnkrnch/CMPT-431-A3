@@ -116,21 +116,16 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         cdf[i] = hist_in[i] + cdf[i - 1];
 	}
 
-    printf("\tafter loop....\n");
 
 	cudaMemset(g_lut, 1, sizeof(int) * nbr_bin);
 	cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice);
 
 	gpu_histogram_equalization_lutcalc<<< 1, MAXTHREADS >>>(g_cdf, g_hist_in, g_lut, g_img_size, g_nbr_bin, g_min);
 
-    printf("\tafter gpu_histogram_equalization_lutcalc....\n");
-
 	cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost);
 
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
 	gpu_histogram_equalization_imgoutcalc<<< block_count, MAXTHREADS >>>(g_img_out, g_img_in, g_lut, g_img_size);
-
-    printf("\tafter gpu_histogram_equalization_imgoutcalc....\n");
 
 	cudaMemcpy(img_out, g_img_out, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost);
 	/*for(i = 0; i < img_size; i ++){

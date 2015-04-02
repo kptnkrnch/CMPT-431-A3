@@ -75,24 +75,7 @@ void run_gpu_yuv_color_test(PPM_IMG img_in)
     cudaEventElapsedTime(&elapsedTime, start, end);
     printf("\tGPU Color YUV time: %fms\n", elapsedTime);
 
-    if(img_obuf_yuv.img_r == NULL) {
-        printf("null shit!!");
-        exit(1);
-    }
-    if(img_obuf_yuv.img_g == NULL) {
-        printf("null shit22!!");
-        exit(1);
-    }
-    if(img_obuf_yuv.img_b == NULL) {
-        printf("null shit33!!");
-        exit(1);
-    }
-
-    printf("h: %d w: %d", img_obuf_yuv.h, img_obuf_yuv.w);
-
     write_ppm(img_obuf_yuv, "gpu_out_yuv.ppm");
-
-     printf("\tafter writing ppm\n");
 
     cudaEventDestroy(start);
     cudaEventDestroy(end);

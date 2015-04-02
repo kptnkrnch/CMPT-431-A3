@@ -302,9 +302,7 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	int grey_count = 0;
     
 	unsigned char * cuda_img_in = 0;
-	//unsigned char * img_in = 0;
 	unsigned char * cuda_img_out = 0;
-	//unsigned char * img_out = 0;
 	int * cuda_img_size = 0;
 	int * cuda_grey_count = 0;
 	int * cuda_hist = 0;
@@ -402,103 +400,50 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
     int block_count = (int)ceil((float)image_size / MAXTHREADS);
 
-
     //setup host vars
     yuv_med = (YUV_IMG*)malloc(sizeof(YUV_IMG));
     yuv_med->img_y = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     yuv_med->img_u = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     yuv_med->img_v = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
 
-    printf("\tafter yuv_med malloc...\n");
-
-
     //allocate variables for gpu_rgb2yuv
     //Pointers to device memory inside the structure still need to be allocated and freed individually.
     cudaMalloc(&gpu_img_in, sizeof(PPM_IMG) * image_size);
-    //cudaMalloc(&gpu_img_in->img_r, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_img_in->img_g, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_img_in->img_b, sizeof(unsigned char) * image_size);
     cudaMalloc(&gpu_yuv_med, sizeof(YUV_IMG) * image_size);
-    //cudaMalloc(&gpu_yuv_med->img_y, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_yuv_med->img_u, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_yuv_med->img_v, sizeof(unsigned char) * image_size);
-
-    printf("\tafter cudaMalloc...\n");
 
     //copy all the data over (deep copy)
     cudaMemcpy(&gpu_img_in, &img_in, sizeof(PPM_IMG) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_img_in->img_r, &img_in.img_r, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_img_in->img_g, &img_in.img_g, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_img_in->img_b, &img_in.img_b, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
     cudaMemcpy(&gpu_yuv_med, &yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_y, &yuv_med->img_y, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_u, &yuv_med->img_u, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_v, &yuv_med->img_v, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-
-    printf("\tafter cudaMemcpy....\n");
 
     //convert to yuv
     gpu_rgb2yuv<<< block_count, MAXTHREADS >>>(gpu_img_in, gpu_yuv_med);
 
-    printf("\tafter rgb2yuv....\n");
-
     //copy back to host
     cudaMemcpy(&yuv_med, &gpu_yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyDeviceToHost);
-    printf("\tafter cudaMemcpy for yuv_med....\n");
-    //cudaFree(gpu_img_in->img_r);
-    //cudaFree(gpu_img_in->img_g);
-    //cudaFree(gpu_img_in->img_b);
     cudaFree(gpu_img_in);
 
-    printf("\tafter free....\n");
-
-
     y_equ = (unsigned char *)malloc(image_size*sizeof(unsigned char));
-
-    printf("\tafter y_equ malloc....\n");
     
     histogram(hist, yuv_med->img_y, image_size, 256);
-
-    printf("\tafter histogram....\n");
     
     gpu_histogram_equalization(y_equ, yuv_med->img_y, hist, image_size, 256);
-
-    printf("\tafter histogram_equalization....\n");
 
     free(yuv_med->img_y);
     yuv_med->img_y = y_equ;
 
-    printf("\tafter free yuv_med->img_y....\n");
-
-
     //start allocate for converting back to rgb
     cudaMalloc(&gpu_result, sizeof(PPM_IMG) * image_size);
-    //cudaMalloc(&gpu_result->img_r, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_result->img_g, sizeof(unsigned char) * image_size);
-    //cudaMalloc(&gpu_result->img_b, sizeof(unsigned char) * image_size);
     cudaMemcpy(&gpu_yuv_med, &yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_y, &yuv_med->img_y, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_u, &yuv_med->img_u, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-    //cudaMemcpy(&gpu_yuv_med->img_v, &yuv_med->img_v, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice);
-
-    printf("\tafter cudaMemcpy and cudaMalloc....\n");
     
     //convert back to rgb
     gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_yuv_med, gpu_result);
-
-    printf("\tafter yuv2rgb....\n");
 
     result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
 
-    printf("\tafter malloc....\n");
-
     //copy back to host
     cudaMemcpy(&result, &gpu_result, sizeof(PPM_IMG) * image_size, cudaMemcpyDeviceToHost);
-
-    printf("\tafter cudaMemcpy....\n");
-    
 
     //result image cliping has to be done outside above function as contains an if statement which will hurt performance in gpu
     for(int i = 0; i < image_size; i ++){
@@ -511,20 +456,10 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     free(yuv_med->img_u);
     free(yuv_med->img_v);
     free(yuv_med);
-
-    // cudaFree(gpu_result->img_r);
-    // cudaFree(gpu_result->img_g);
-    // cudaFree(gpu_result->img_b);
+    free(y_equ);
     cudaFree(gpu_result);
-    // cudaFree(gpu_yuv_med->img_y);
-    // cudaFree(gpu_yuv_med->img_u);
-    // cudaFree(gpu_yuv_med->img_v);
     cudaFree(gpu_yuv_med);
 
-    printf("\thit end :)\n");
-
-
-    
     return result;
 }
 
