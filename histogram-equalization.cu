@@ -51,17 +51,22 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 
 __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin){
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
-	
+	__shared__ int hist_temp[256];
     //for ( i = 0; i < nbr_bin; i ++){
-	if (id < *nbr_bin) {
-        hist_out[id] = 0;
+	if (threadIdx.x < *nbr_bin) {
+        hist_temp[threadIdx.x] = 0;
 	}
     //}
-
+	__syncthreads();
     //for ( i = 0; i < img_size; i ++){
-	/*if (id < *img_size) {
-        hist_out[img_in[id]] ++;
-	}*/
+	if (id < *img_size) {
+        //atomicAdd(&hist_out[(int)img_in[id]], 1);
+		atomicAdd(&hist_temp[(int)img_in[id]], 1);
+	}
+	__syncthreads();
+	if (threadIdx.x < *nbr_bin) {
+		atomicAdd(&hist_out[threadIdx.x], hist_temp[threadIdx.x]);
+	}
     //}
 }
 

@@ -325,22 +325,24 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	cudaMemcpy(cuda_img_size, &img_size, sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(cuda_grey_count, &grey_count, sizeof(int), cudaMemcpyHostToDevice);
 
-	for (int i = 0; i < 256; i++) {
+	/*for (int i = 0; i < 256; i++) {
 		hist[i] = 0;
-	}
-	cudaMemcpy(cuda_hist, hist, sizeof(int) * 256, cudaMemcpyHostToDevice);
-
-	if (img_size >= grey_count) {
-		int block_count = (int)ceil((float)img_size / MAXTHREADS);
+	}*/
+	cudaMemset(cuda_hist, 0, sizeof(int) * 256);
+	//cudaMemcpy(cuda_hist, hist, sizeof(int) * 256, cudaMemcpyHostToDevice);
+	int block_count = (int)ceil((float)img_size / MAXTHREADS);
+	/*if (img_size >= grey_count) {
+		
 		gpu_histogram<<< block_count, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count);
 	} else {
 		gpu_histogram<<< 1, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count);
-	}
+	}*/
+	gpu_histogram<<< block_count, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count);
 	//cudaMemset(cuda_hist, 0, sizeof(int) * 256);
-	//cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
-	for ( int i = 0; i < img_size; i ++){
+	cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
+	/*for ( int i = 0; i < img_size; i ++){
 		hist[img_in.img[i]] ++;
-	}
+	}*/
 	
 	gpu_histogram_equalization(result.img, img_in.img, hist, img_size, grey_count);
 
