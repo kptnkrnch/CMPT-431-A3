@@ -51,9 +51,11 @@ HSL_IMG rgb2hsl(PPM_IMG img_in);
 PPM_IMG hsl2rgb(HSL_IMG img_in);
 
 YUV_IMG rgb2yuv(PPM_IMG img_in);
-__global__ void gpu_rgb2yuv(PPM_IMG* img_in, YUV_IMG* img_out);
+__global__ void gpu_rgb2yuv(int* image_size, unsigned char* img_in_r, unsigned char* img_in_g, unsigned char* img_in_b,
+                            unsigned char* img_out_y, unsigned char* img_out_u, unsigned char* img_out_v);
 PPM_IMG yuv2rgb(YUV_IMG img_in);    
-__global__ void gpu_yuv2rgb(YUV_IMG* img_in, PPM_IMG* img_out); 
+__global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned char* img_in_u, unsigned char* img_in_v,
+                            unsigned char* img_out_r, unsigned char* img_out_g, unsigned char* img_out_b); 
 
 void histogram(int * hist_out, unsigned char * img_in, int img_size, int nbr_bin);
 void histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
@@ -75,5 +77,16 @@ PPM_IMG contrast_enhancement_c_hsl(PPM_IMG img_in);
 PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in);
 PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in);
 
+#define HANDLE_ERROR( err ) ( HandleError( err, __FILE__, __LINE__ ) )
+
+static void HandleError( cudaError_t err, const char *file, int line )
+{
+    if (err != cudaSuccess)
+    {
+    printf( "%s in %s at line %d\n", cudaGetErrorString( err ),
+            file, line );
+    exit( EXIT_FAILURE );
+    }
+}
 
 #endif

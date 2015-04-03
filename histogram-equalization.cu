@@ -67,49 +67,41 @@ __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_
 
 void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin){
-	cudaError_t err;
 	int i = 0;
 	int * lut = (int*)malloc(sizeof(int) * nbr_bin);
     int *g_lut = 0;
-	cudaMalloc(&g_lut, sizeof(int)* nbr_bin);
+	HANDLE_ERROR( cudaMalloc(&g_lut, sizeof(int)* nbr_bin) );
 	int *cdf = (int *)malloc(sizeof(int)* nbr_bin);
 	int *g_cdf = 0;
-	cudaMalloc(&g_cdf, sizeof(int)* nbr_bin);
+	HANDLE_ERROR( cudaMalloc(&g_cdf, sizeof(int)* nbr_bin) );
 	
 	int * g_hist_in = 0;
-	cudaMalloc(&g_hist_in, sizeof(int) * 256);
+	HANDLE_ERROR( cudaMalloc(&g_hist_in, sizeof(int) * 256) );
 	int * g_img_size = 0;
-	cudaMalloc(&g_img_size, sizeof(int));
+	HANDLE_ERROR( cudaMalloc(&g_img_size, sizeof(int)) );
 	int * g_nbr_bin = 0;
-	cudaMalloc(&g_nbr_bin, sizeof(int));
+	HANDLE_ERROR( cudaMalloc(&g_nbr_bin, sizeof(int)) );
 	int min = 0;
 	i = 0;
 	while(min == 0){
 		min = hist_in[i++];
 	}
 	int * g_min = 0;
-	cudaMalloc(&g_min, sizeof(int));
-	cudaMemcpy(g_min, &min, sizeof(int), cudaMemcpyHostToDevice);
+	HANDLE_ERROR( cudaMalloc(&g_min, sizeof(int)) );
+	HANDLE_ERROR( cudaMemcpy(g_min, &min, sizeof(int), cudaMemcpyHostToDevice) );
 
 	unsigned char *g_img_in = 0;
-	err = cudaMalloc(&g_img_in, sizeof(unsigned char) * img_size);
-	if (err == cudaErrorMemoryAllocation) {
-        printf("\texit 2\n");
-		exit(2);
-	}
+	HANDLE_ERROR( cudaMalloc(&g_img_in, sizeof(unsigned char) * img_size) );
 	unsigned char *g_img_out = 0;
-	err = cudaMalloc(&g_img_out, sizeof(unsigned char) * img_size);
-	if (err == cudaErrorMemoryAllocation) {
-        printf("\texit 1\n");
-		exit(1);
-	}
-	cudaMemcpy(g_img_in, img_in, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice);
-	cudaMemcpy(g_img_out, img_out, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice);
+	HANDLE_ERROR( cudaMalloc(&g_img_out, sizeof(unsigned char) * img_size) );
+
+	HANDLE_ERROR( cudaMemcpy(g_img_in, img_in, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice) );
+	HANDLE_ERROR( cudaMemcpy(g_img_out, img_out, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice) );
 
 
-	cudaMemcpy(g_hist_in, hist_in, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice);
-	cudaMemcpy(g_img_size, &img_size, sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(g_nbr_bin, &nbr_bin, sizeof(int), cudaMemcpyHostToDevice);
+	HANDLE_ERROR( cudaMemcpy(g_hist_in, hist_in, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice) );
+	HANDLE_ERROR( cudaMemcpy(g_img_size, &img_size, sizeof(int), cudaMemcpyHostToDevice) );
+	HANDLE_ERROR( cudaMemcpy(g_nbr_bin, &nbr_bin, sizeof(int), cudaMemcpyHostToDevice) );
 
 	cdf[0] = hist_in[0];
 	for(i = 1; i < nbr_bin; i++){
@@ -117,17 +109,17 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 	}
 
 
-	cudaMemset(g_lut, 1, sizeof(int) * nbr_bin);
-	cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice);
+	HANDLE_ERROR( cudaMemset(g_lut, 1, sizeof(int) * nbr_bin) );
+	HANDLE_ERROR( cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice) );
 
 	gpu_histogram_equalization_lutcalc<<< 1, MAXTHREADS >>>(g_cdf, g_hist_in, g_lut, g_img_size, g_nbr_bin, g_min);
 
-	cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost);
+	HANDLE_ERROR( cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost) );
 
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
 	gpu_histogram_equalization_imgoutcalc<<< block_count, MAXTHREADS >>>(g_img_out, g_img_in, g_lut, g_img_size);
 
-	cudaMemcpy(img_out, g_img_out, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost);
+	HANDLE_ERROR( cudaMemcpy(img_out, g_img_out, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost) );
 	/*for(i = 0; i < img_size; i ++){
         if(lut[img_in[i]] > 255){
             img_out[i] = 255;

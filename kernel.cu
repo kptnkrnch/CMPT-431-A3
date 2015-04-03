@@ -26,9 +26,12 @@ int main(){
     
     printf("Running contrast enhancement for color images.\n");
     img_ibuf_c = read_ppm("in.ppm");
-    run_cpu_color_test(img_ibuf_c);
-    run_gpu_hsl_color_test(img_ibuf_c);
     run_gpu_yuv_color_test(img_ibuf_c);
+    run_gpu_hsl_color_test(img_ibuf_c);
+    
+    run_cpu_color_test(img_ibuf_c);
+    
+    
     free_ppm(img_ibuf_c);
     
     return 0;
@@ -53,9 +56,9 @@ void run_gpu_hsl_color_test(PPM_IMG img_in)
     printf("\tGPU Color HSL time: %fms\n", elapsedTime);
     write_ppm(img_obuf_hsl, "gpu_out_hsl.ppm");
 
+    free_ppm(img_obuf_hsl);
     cudaEventDestroy(start);
     cudaEventDestroy(end);
-    free_ppm(img_obuf_hsl);
 }
 
 void run_gpu_yuv_color_test(PPM_IMG img_in)
@@ -65,21 +68,21 @@ void run_gpu_yuv_color_test(PPM_IMG img_in)
     float elapsedTime;
     PPM_IMG img_obuf_yuv;
 
-    cudaEventCreate(&start);
-    cudaEventCreate(&end);
-    cudaEventRecord(start,0);
-    printf("\tbefore call...\n");
+    HANDLE_ERROR( cudaEventCreate(&start) );
+    HANDLE_ERROR( cudaEventCreate(&end) );
+    HANDLE_ERROR( cudaEventRecord(start,0) );
     img_obuf_yuv = gpu_contrast_enhancement_c_yuv(img_in);
-    cudaEventRecord(end,0);
-    cudaEventSynchronize(end);
-    cudaEventElapsedTime(&elapsedTime, start, end);
+
+    HANDLE_ERROR( cudaEventRecord(end,0) );
+    HANDLE_ERROR( cudaEventSynchronize(end) );
+    HANDLE_ERROR( cudaEventElapsedTime(&elapsedTime, start, end) );
     printf("\tGPU Color YUV time: %fms\n", elapsedTime);
 
     write_ppm(img_obuf_yuv, "gpu_out_yuv.ppm");
 
+    free_ppm(img_obuf_yuv);
     cudaEventDestroy(start);
     cudaEventDestroy(end);
-    free_ppm(img_obuf_yuv);
 }
 
 void run_gpu_gray_test(PGM_IMG img_in)

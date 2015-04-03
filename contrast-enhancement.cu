@@ -4,6 +4,8 @@
 #include <cmath>
 #include "hist-equ.cuh"
 
+
+
 PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
@@ -387,63 +389,99 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 {
     //host vars
-    YUV_IMG* yuv_med;
     PPM_IMG result;
+    unsigned char * yuv_med_img_y;
+    unsigned char * yuv_med_img_u;
+    unsigned char * yuv_med_img_v;
     unsigned char * y_equ;
     int hist[256];
     int image_size = img_in.w * img_in.h;
 
     //device vars
-    PPM_IMG* gpu_result;
-    PPM_IMG* gpu_img_in;
-    YUV_IMG* gpu_yuv_med;
+    //PPM_IMG* gpu_result;
+    unsigned char * gpu_result_img_r = 0;
+    unsigned char * gpu_result_img_g = 0;
+    unsigned char * gpu_result_img_b = 0;
+    //PPM_IMG* gpu_img_in;
+    unsigned char * gpu_img_in_img_r = 0;
+    unsigned char * gpu_img_in_img_g = 0;
+    unsigned char * gpu_img_in_img_b = 0;
+    //YUV_IMG* gpu_yuv_med;
+    unsigned char * gpu_yuv_med_img_y = 0;
+    unsigned char * gpu_yuv_med_img_u = 0;
+    unsigned char * gpu_yuv_med_img_v = 0;
+    int* gpu_image_size;
 
     int block_count = (int)ceil((float)image_size / MAXTHREADS);
 
     //setup host vars
-    yuv_med = (YUV_IMG*)malloc(sizeof(YUV_IMG));
-    yuv_med->img_y = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
-    yuv_med->img_u = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
-    yuv_med->img_v = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    yuv_med_img_y = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    yuv_med_img_u = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    yuv_med_img_v = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
 
     //allocate variables for gpu_rgb2yuv
     //Pointers to device memory inside the structure still need to be allocated and freed individually.
-    cudaMalloc(&gpu_img_in, sizeof(PPM_IMG) * image_size);
-    cudaMalloc(&gpu_yuv_med, sizeof(YUV_IMG) * image_size);
 
-    //copy all the data over (deep copy)
-    cudaMemcpy(&gpu_img_in, &img_in, sizeof(PPM_IMG) * image_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(&gpu_yuv_med, &yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyHostToDevice);
+    HANDLE_ERROR( cudaMalloc(&gpu_img_in_img_r, sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMemcpy(gpu_img_in_img_r, img_in.img_r, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice) );
+    
+    HANDLE_ERROR( cudaMalloc(&gpu_img_in_img_g, sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMemcpy(gpu_img_in_img_g, img_in.img_g, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice) );
+
+    HANDLE_ERROR( cudaMalloc(&gpu_img_in_img_b, sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMemcpy(gpu_img_in_img_b, img_in.img_b, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice) );
+
+    HANDLE_ERROR( cudaMalloc(&gpu_yuv_med_img_y, sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMalloc(&gpu_yuv_med_img_u, sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMalloc(&gpu_yuv_med_img_v, sizeof(unsigned char) * image_size) );
+
+
+    HANDLE_ERROR( cudaMalloc(&gpu_image_size, sizeof(int)) );
+    HANDLE_ERROR( cudaMemcpy(gpu_image_size, &(image_size), sizeof(int), cudaMemcpyHostToDevice) );
+
 
     //convert to yuv
-    gpu_rgb2yuv<<< block_count, MAXTHREADS >>>(gpu_img_in, gpu_yuv_med);
+    gpu_rgb2yuv<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_img_in_img_r, gpu_img_in_img_g, gpu_img_in_img_b,
+                                                gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v);
+
+    //********************* done converting up to here
 
     //copy back to host
-    cudaMemcpy(&yuv_med, &gpu_yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyDeviceToHost);
-    cudaFree(gpu_img_in);
+    HANDLE_ERROR( cudaMemcpy(yuv_med_img_y, gpu_yuv_med_img_y, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
+    HANDLE_ERROR( cudaMemcpy(yuv_med_img_u, gpu_yuv_med_img_u, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
+    HANDLE_ERROR( cudaMemcpy(yuv_med_img_v, gpu_yuv_med_img_v, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
+    HANDLE_ERROR( cudaFree(gpu_img_in_img_r) );
+    HANDLE_ERROR( cudaFree(gpu_img_in_img_g) );
+    HANDLE_ERROR( cudaFree(gpu_img_in_img_b) );
 
     y_equ = (unsigned char *)malloc(image_size*sizeof(unsigned char));
     
-    histogram(hist, yuv_med->img_y, image_size, 256);
+    histogram(hist, yuv_med_img_y, image_size, 256);
     
-    gpu_histogram_equalization(y_equ, yuv_med->img_y, hist, image_size, 256);
+    gpu_histogram_equalization(y_equ, yuv_med_img_y, hist, image_size, 256);
 
-    free(yuv_med->img_y);
-    yuv_med->img_y = y_equ;
+    free(yuv_med_img_y);
+    yuv_med_img_y = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+    yuv_med_img_y = y_equ;
 
     //start allocate for converting back to rgb
-    cudaMalloc(&gpu_result, sizeof(PPM_IMG) * image_size);
-    cudaMemcpy(&gpu_yuv_med, &yuv_med, sizeof(YUV_IMG) * image_size, cudaMemcpyHostToDevice);
+    HANDLE_ERROR( cudaMalloc(&(gpu_result_img_r), sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMalloc(&(gpu_result_img_g), sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMalloc(&(gpu_result_img_b), sizeof(unsigned char) * image_size) );
+    HANDLE_ERROR( cudaMemcpy(gpu_yuv_med_img_y, yuv_med_img_y, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice) );
     
     //convert back to rgb
-    gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_yuv_med, gpu_result);
+    gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v, 
+                                                gpu_result_img_r, gpu_result_img_g, gpu_result_img_b);
 
     result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
 
     //copy back to host
-    cudaMemcpy(&result, &gpu_result, sizeof(PPM_IMG) * image_size, cudaMemcpyDeviceToHost);
+    HANDLE_ERROR( cudaMemcpy(result.img_r, gpu_result_img_r, sizeof(unsigned char)*image_size, cudaMemcpyDeviceToHost) );
+    HANDLE_ERROR( cudaMemcpy(result.img_g, gpu_result_img_g, sizeof(unsigned char)*image_size, cudaMemcpyDeviceToHost) );
+    HANDLE_ERROR( cudaMemcpy(result.img_b, gpu_result_img_b, sizeof(unsigned char)*image_size, cudaMemcpyDeviceToHost) );
 
     //result image cliping has to be done outside above function as contains an if statement which will hurt performance in gpu
     for(int i = 0; i < image_size; i ++){
@@ -452,13 +490,18 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
         result.img_b[i] = clip_rgb(result.img_b[i]);
     }
 
-    free(yuv_med->img_y);
-    free(yuv_med->img_u);
-    free(yuv_med->img_v);
-    free(yuv_med);
-    free(y_equ);
-    cudaFree(gpu_result);
-    cudaFree(gpu_yuv_med);
+    result.w = img_in.w;
+    result.h = img_in.h;
+
+    free(yuv_med_img_y); //by freeing this you are freeing y_equ as well
+    free(yuv_med_img_u);
+    free(yuv_med_img_v);
+    HANDLE_ERROR( cudaFree(gpu_result_img_r) );
+    HANDLE_ERROR( cudaFree(gpu_result_img_g) );
+    HANDLE_ERROR( cudaFree(gpu_result_img_b) );
+    HANDLE_ERROR( cudaFree(gpu_yuv_med_img_y) );
+    HANDLE_ERROR( cudaFree(gpu_yuv_med_img_u) );
+    HANDLE_ERROR( cudaFree(gpu_yuv_med_img_v) );
 
     return result;
 }
@@ -467,52 +510,47 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
 
 //Convert RGB to YUV, all components in [0, 255]
-__global__ void gpu_rgb2yuv(PPM_IMG* img_in, YUV_IMG* img_out)
+__global__ void gpu_rgb2yuv(int* image_size, unsigned char* img_in_r, unsigned char* img_in_g, unsigned char* img_in_b,
+                            unsigned char* img_out_y, unsigned char* img_out_u, unsigned char* img_out_v)
 {
-    int i;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned char r, g, b;
     unsigned char y, cb, cr;
-    
-    img_out->w = img_in->w;
-    img_out->h = img_in->h;
 
-    for(i = 0; i < img_out->w*img_out->h; i ++){
-        r = img_in->img_r[i];
-        g = img_in->img_g[i];
-        b = img_in->img_b[i];
+    if(i < *image_size) {
+        r = img_in_r[i];
+        g = img_in_g[i];
+        b = img_in_b[i];
         
         y  = (unsigned char)( 0.299*r + 0.587*g +  0.114*b);
         cb = (unsigned char)(-0.169*r - 0.331*g +  0.499*b + 128);
         cr = (unsigned char)( 0.499*r - 0.418*g - 0.0813*b + 128);
         
-        img_out->img_y[i] = y;
-        img_out->img_u[i] = cb;
-        img_out->img_v[i] = cr;
+        img_out_y[i] = y;
+        img_out_u[i] = cb;
+        img_out_v[i] = cr;
     }
 }
 
 //Convert YUV to RGB, all components in [0, 255]
-__global__ void gpu_yuv2rgb(YUV_IMG* img_in, PPM_IMG* img_out)
+__global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned char* img_in_u, unsigned char* img_in_v,
+                            unsigned char* img_out_r, unsigned char* img_out_g, unsigned char* img_out_b)
 {
-    int i;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
     int  rt,gt,bt;
     int y, cb, cr;
-    
-    
-    img_out->w = img_in->w;
-    img_out->h = img_in->h;
 
-    for(i = 0; i < img_out->w*img_out->h; i ++){
-        y  = (int)img_in->img_y[i];
-        cb = (int)img_in->img_u[i] - 128;
-        cr = (int)img_in->img_v[i] - 128;
+    if(i < *image_size) {
+        y  = (int)img_in_y[i];
+        cb = (int)img_in_u[i] - 128;
+        cr = (int)img_in_v[i] - 128;
         
         rt  = (int)( y + 1.402*cr);
         gt  = (int)( y - 0.344*cb - 0.714*cr);
         bt  = (int)( y + 1.772*cb);
 
-        img_out->img_r[i] = rt;
-        img_out->img_g[i] = gt;
-        img_out->img_b[i] = bt;
+        img_out_r[i] = rt;
+        img_out_g[i] = gt;
+        img_out_b[i] = bt;
     }
 }
