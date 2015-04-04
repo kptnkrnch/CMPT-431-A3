@@ -60,7 +60,7 @@ __global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned c
 void histogram(int * hist_out, unsigned char * img_in, int img_size, int nbr_bin);
 void histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin);
-__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size, int * nbr_bin);
+__global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size);
 void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin);
 __global__ void gpu_histogram_equalization_lutcalc(int * cdf, int * hist_in, int * lut, int * img_size, int * nbr_bin, int * min);
