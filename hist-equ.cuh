@@ -3,7 +3,7 @@
 
 #include <cuda_runtime.h>
 
-#define MAXTHREADS 1024
+#define MAXTHREADS 256
 
 typedef struct{
     int w;

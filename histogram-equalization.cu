@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "hist-equ.cuh"
 
+//#define NAIVE
 
 void histogram(int * hist_out, unsigned char * img_in, int img_size, int nbr_bin){
     int i;
@@ -52,6 +53,12 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size){
 	int id = blockIdx.x * blockDim.x + threadIdx.x;
     int nbr_bin = 256;
+
+#ifdef NAIVE
+	if (id < *img_size) {
+        atomicAdd(&hist_out[(int)img_in[id]], 1);
+	}
+#else
 	__shared__ int hist_temp[256];
     //for ( i = 0; i < nbr_bin; i ++){
 	if (threadIdx.x < nbr_bin) {
@@ -68,6 +75,7 @@ __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_
 	if (threadIdx.x < nbr_bin) {
 		atomicAdd(&hist_out[threadIdx.x], hist_temp[threadIdx.x]);
 	}
+#endif
     //}
 }
 
@@ -172,7 +180,7 @@ __global__ void gpu_histogram_equalization_lutcalc(int * cdf,
 __global__ void gpu_histogram_equalization_imgoutcalc(unsigned char * img_out, unsigned char * img_in, 
                             int * lut, int * img_size){
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	
+
 	if (i < *img_size) {
     
         img_out[i] = (unsigned char)lut[(int)img_in[i]];

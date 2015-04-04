@@ -3,12 +3,15 @@
 #include <stdlib.h>
 #include "hist-equ.cuh"
 #include <chrono>
+//#include <Windows.h>
 #include <iostream>
 
 void run_cpu_color_test(PPM_IMG img_in);
 void run_gpu_color_test(PPM_IMG img_in);
 void run_cpu_gray_test(PGM_IMG img_in);
 void run_gpu_gray_test(PGM_IMG img_in);
+
+void GetElapsedTimeWindows(bool end);
 
 #define MSEC 1000
 
@@ -97,7 +100,9 @@ void run_cpu_color_test(PPM_IMG img_in)
     printf("Starting CPU processing...\n");
     
     auto start_hsl = std::chrono::steady_clock::now();
+	//GetElapsedTimeWindows(false);
     img_obuf_hsl = contrast_enhancement_c_hsl(img_in);
+	//GetElapsedTimeWindows(true);
     auto end_hsl = std::chrono::steady_clock::now();
     auto elapsed_hsl = std::chrono::duration_cast<std::chrono::milliseconds>(end_hsl - start_hsl);
     std::cout << "\tCPU Color HSL time: " << elapsed_hsl.count() << "ms" << std::endl;
@@ -105,7 +110,9 @@ void run_cpu_color_test(PPM_IMG img_in)
     write_ppm(img_obuf_hsl, "cpu_out_hsl.ppm");
 
     auto start_yuv = std::chrono::steady_clock::now();
+	//GetElapsedTimeWindows(false);
     img_obuf_yuv = contrast_enhancement_c_yuv(img_in);
+	//GetElapsedTimeWindows(true);
     auto end_yuv = std::chrono::steady_clock::now();
     auto elapsed_yuv = std::chrono::duration_cast<std::chrono::milliseconds>(end_yuv - start_yuv);
     std::cout << "\tCPU Color YUV time: " << elapsed_yuv.count() << "ms" << std::endl;
@@ -126,7 +133,9 @@ void run_cpu_gray_test(PGM_IMG img_in)
     printf("Starting CPU processing...\n");
 
     auto start = std::chrono::steady_clock::now();
+	//GetElapsedTimeWindows(false);
     img_obuf = contrast_enhancement_g(img_in);
+	//GetElapsedTimeWindows(true);
     auto end = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     std::cout << "\tCPU Graytime: " << elapsed.count() << "ms" << std::endl;
@@ -249,3 +258,23 @@ void free_pgm(PGM_IMG img)
     free(img.img);
 }
 
+//void GetElapsedTimeWindows(bool end) {
+//	static LARGE_INTEGER frequency;        // ticks per second
+//	static LARGE_INTEGER t1, t2;           // ticks
+//	double elapsedTime;
+//
+//	// get ticks per second
+//	QueryPerformanceFrequency(&frequency);
+//
+//	// start timer
+//	if (!end) {
+//		QueryPerformanceCounter(&t1);
+//	} else {
+//		// stop timer
+//		QueryPerformanceCounter(&t2);
+//
+//		// compute and print the elapsed time in millisec
+//		elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+//		printf("Time: %f (ms)\n", elapsedTime);
+//	}
+//}
