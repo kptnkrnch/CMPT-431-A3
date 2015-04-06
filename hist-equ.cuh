@@ -3,7 +3,7 @@
 
 #include <cuda_runtime.h>
 
-#define MAXTHREADS 256
+#define MAXTHREADS 1024
 
 typedef struct{
     int w;
@@ -76,6 +76,12 @@ PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in);
 PPM_IMG contrast_enhancement_c_hsl(PPM_IMG img_in);
 PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in);
 PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in);
+
+__global__ void gpu_hsl2rgb(float * img_in_h, float * img_in_s, unsigned char * img_in_l, 
+							unsigned char * img_out_r, unsigned char * img_out_g, unsigned char * img_out_b, int img_size);
+__global__ void gpu_rgb2hsl(unsigned char * img_in_r, unsigned char * img_in_g, unsigned char * img_in_b,
+							float * img_out_h, float * img_out_s, unsigned char * img_out_l, int img_size);
+__device__ float gpu_Hue_2_RGB( float v1, float v2, float vH );
 
 #define HANDLE_ERROR( err ) ( HandleError( err, __FILE__, __LINE__ ) )
 
