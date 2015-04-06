@@ -483,10 +483,22 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     //convert back to rgb
     gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v, 
                                                 gpu_result_img_r, gpu_result_img_g, gpu_result_img_b);
+	/*YUV_IMG img;
+	img.h = img_in.h;
+	img.w = img_in.w;
+	img.img_u = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
+	img.img_v = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
+	img.img_y = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
+	memcpy(img.img_u, yuv_med_img_u, sizeof(unsigned char) * img.w * img.h);
+	memcpy(img.img_v, yuv_med_img_v, sizeof(unsigned char) * img.w * img.h);
+	memcpy(img.img_y, yuv_med_img_y, sizeof(unsigned char) * img.w * img.h);
+	*/
 
     result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
+
+	//result = yuv2rgb(img);
 
     //copy back to host
     HANDLE_ERROR( cudaMemcpy(result.img_r, gpu_result_img_r, sizeof(unsigned char)*image_size, cudaMemcpyDeviceToHost) );
@@ -535,6 +547,15 @@ __global__ void gpu_rgb2yuv(int* image_size, unsigned char* img_in_r, unsigned c
     }
 }
 
+__device__ unsigned char gpu_clip_rgb(int x) {
+	if(x > 255)
+        return 255;
+    if(x < 0)
+        return 0;
+
+    return (unsigned char)x;
+}
+
 //Convert YUV to RGB, all components in [0, 255]
 __global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned char* img_in_u, unsigned char* img_in_v,
                             unsigned char* img_out_r, unsigned char* img_out_g, unsigned char* img_out_b)
@@ -560,8 +581,11 @@ __global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned c
         // img_out_g[i] = gt > 255 ? 255 : gt < 0 ? 0 : (unsigned char) gt;
         // img_out_b[i] = bt > 255 ? 255 : bt < 0 ? 0 : (unsigned char) bt;
 
-        img_out_r[i] = (rt&(~0xFF)) ? (unsigned char)(-rt)>>31 : (unsigned char) rt;
+        /*img_out_r[i] = (rt&(~0xFF)) ? (unsigned char)(-rt)>>31 : (unsigned char) rt;
         img_out_g[i] = (gt&(~0xFF)) ? (unsigned char)(-gt)>>31 : (unsigned char) gt;
-        img_out_b[i] = (bt&(~0xFF)) ? (unsigned char)(-bt)>>31 : (unsigned char) bt;
+        img_out_b[i] = (bt&(~0xFF)) ? (unsigned char)(-bt)>>31 : (unsigned char) bt;*/
+		img_out_r[i] = gpu_clip_rgb(rt);
+		img_out_g[i] = gpu_clip_rgb(gt);
+		img_out_b[i] = gpu_clip_rgb(bt);
     }
 }
