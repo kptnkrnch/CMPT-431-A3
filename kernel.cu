@@ -13,7 +13,7 @@ void run_gpu_gray_test(PGM_IMG img_in);
 
 void GetElapsedTimeWindows(bool end);
 
-#define MSEC 1000
+#define MSEC 1000.00
 
 
 int main(){
@@ -104,8 +104,8 @@ void run_cpu_color_test(PPM_IMG img_in)
     img_obuf_hsl = contrast_enhancement_c_hsl(img_in);
 	//GetElapsedTimeWindows(true);
     auto end_hsl = std::chrono::steady_clock::now();
-    auto elapsed_hsl = std::chrono::duration_cast<std::chrono::milliseconds>(end_hsl - start_hsl);
-    std::cout << "\tCPU Color HSL time: " << elapsed_hsl.count() << "ms" << std::endl;
+    auto elapsed_hsl = std::chrono::duration_cast<std::chrono::microseconds>(end_hsl - start_hsl);
+    std::cout << "\tCPU Color HSL time: " << (elapsed_hsl.count() / MSEC) << "ms" << std::endl;
     
     write_ppm(img_obuf_hsl, "cpu_out_hsl.ppm");
 
@@ -114,8 +114,8 @@ void run_cpu_color_test(PPM_IMG img_in)
     img_obuf_yuv = contrast_enhancement_c_yuv(img_in);
 	//GetElapsedTimeWindows(true);
     auto end_yuv = std::chrono::steady_clock::now();
-    auto elapsed_yuv = std::chrono::duration_cast<std::chrono::milliseconds>(end_yuv - start_yuv);
-    std::cout << "\tCPU Color YUV time: " << elapsed_yuv.count() << "ms" << std::endl;
+    auto elapsed_yuv = std::chrono::duration_cast<std::chrono::microseconds>(end_yuv - start_yuv);
+    std::cout << "\tCPU Color YUV time: " << (elapsed_yuv.count() / MSEC) << "ms" << std::endl;
     
     write_ppm(img_obuf_yuv, "cpu_out_yuv.ppm");
     
@@ -137,8 +137,8 @@ void run_cpu_gray_test(PGM_IMG img_in)
     img_obuf = contrast_enhancement_g(img_in);
 	//GetElapsedTimeWindows(true);
     auto end = std::chrono::steady_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "\tCPU Graytime: " << elapsed.count() << "ms" << std::endl;
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "\tCPU Graytime: " << (elapsed.count() / MSEC) << "ms" << std::endl;
     
     write_pgm(img_obuf, "cpu_out.pgm");
     free_pgm(img_obuf);
