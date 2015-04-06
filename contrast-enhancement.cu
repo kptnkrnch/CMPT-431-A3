@@ -5,7 +5,6 @@
 #include "hist-equ.cuh"
 
 
-
 PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
@@ -20,30 +19,6 @@ PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
     histogram_equalization(result.img,img_in.img,hist,result.w*result.h, 256);
     return result;
 }
-
-/*
-//not called anywhere nor does it seem we even want to use this. keep just in case
-PPM_IMG contrast_enhancement_c_rgb(PPM_IMG img_in)
-{
-    PPM_IMG result;
-    int hist[256];
-    
-    result.w = img_in.w;
-    result.h = img_in.h;
-    result.img_r = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    result.img_g = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    result.img_b = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    
-    histogram(hist, img_in.img_r, img_in.h * img_in.w, 256);
-    histogram_equalization(result.img_r,img_in.img_r,hist,result.w*result.h, 256);
-    histogram(hist, img_in.img_g, img_in.h * img_in.w, 256);
-    histogram_equalization(result.img_g,img_in.img_g,hist,result.w*result.h, 256);
-    histogram(hist, img_in.img_b, img_in.h * img_in.w, 256);
-    histogram_equalization(result.img_b,img_in.img_b,hist,result.w*result.h, 256);
-
-    return result;
-}
-*/
 
 
 PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
@@ -71,6 +46,7 @@ PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
     
     return result;
 }
+
 
 PPM_IMG contrast_enhancement_c_hsl(PPM_IMG img_in)
 {
@@ -164,6 +140,7 @@ HSL_IMG rgb2hsl(PPM_IMG img_in)
     return img_out;
 }
 
+
 float Hue_2_RGB( float v1, float v2, float vH )             //Function Hue_2_RGB
 {
     if ( vH < 0 ) vH += 1;
@@ -173,6 +150,7 @@ float Hue_2_RGB( float v1, float v2, float vH )             //Function Hue_2_RGB
     if ( ( 3 * vH ) < 2 ) return ( v1 + ( v2 - v1 ) * ( ( 2.0f/3.0f ) - vH ) * 6 );
     return ( v1 );
 }
+
 
 //Convert HSL to RGB, assume H, S in [0.0, 1.0] and L in [0, 255]
 //Output R,G,B in [0, 255]
@@ -222,6 +200,7 @@ PPM_IMG hsl2rgb(HSL_IMG img_in)
     return result;
 }
 
+
 //Convert RGB to YUV, all components in [0, 255]
 YUV_IMG rgb2yuv(PPM_IMG img_in)
 {
@@ -253,6 +232,7 @@ YUV_IMG rgb2yuv(PPM_IMG img_in)
     return img_out;
 }
 
+
 unsigned char clip_rgb(int x)
 {
     if(x > 255)
@@ -262,6 +242,7 @@ unsigned char clip_rgb(int x)
 
     return (unsigned char)x;
 }
+
 
 //Convert YUV to RGB, all components in [0, 255]
 PPM_IMG yuv2rgb(YUV_IMG img_in)
@@ -296,6 +277,13 @@ PPM_IMG yuv2rgb(YUV_IMG img_in)
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+//
+//  GPU SECTION
+//
+///////////////////////////////////////////////////////////////////////////////
+
+
 PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
@@ -306,7 +294,6 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	unsigned char * cuda_img_in = 0;
 	unsigned char * cuda_img_out = 0;
 	int * cuda_img_size = 0;
-	//int * cuda_grey_count = 0;
 	int * cuda_hist = 0;
 	
 
@@ -317,7 +304,6 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 	cudaMalloc(&cuda_img_in, sizeof(unsigned char) * result.w * result.h);
 	cudaMalloc(&cuda_img_out, sizeof(unsigned char) * result.w * result.h);
 	cudaMalloc(&cuda_img_size, sizeof(int));
-	//cudaMalloc(&cuda_grey_count, sizeof(int));
 	cudaMalloc(&cuda_hist, sizeof(int) * 256);
 
 	img_size = img_in.h * img_in.w;
@@ -325,52 +311,30 @@ PGM_IMG gpu_contrast_enhancement_g(PGM_IMG img_in)
 
 	cudaMemcpy(cuda_img_in, img_in.img, sizeof(unsigned char) * result.w * result.h, cudaMemcpyHostToDevice);
 	cudaMemcpy(cuda_img_size, &img_size, sizeof(int), cudaMemcpyHostToDevice);
-	//cudaMemcpy(cuda_grey_count, &grey_count, sizeof(int), cudaMemcpyHostToDevice);
-
-	/*for (int i = 0; i < 256; i++) {
-		hist[i] = 0;
-	}*/
 	cudaMemset(cuda_hist, 0, sizeof(int) * 256);
-	//cudaMemcpy(cuda_hist, hist, sizeof(int) * 256, cudaMemcpyHostToDevice);
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
-	/*if (img_size >= grey_count) {
-		
-		gpu_histogram<<< block_count, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count);
-	} else {
-		gpu_histogram<<< 1, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size, cuda_grey_count);
-	}*/
+
 	gpu_histogram<<< block_count, MAXTHREADS >>>(cuda_hist, cuda_img_in, cuda_img_size);
-	//cudaMemset(cuda_hist, 0, sizeof(int) * 256);
 	cudaMemcpy(hist, cuda_hist, sizeof(int) * 256, cudaMemcpyDeviceToHost);
-	/*for ( int i = 0; i < img_size; i ++){
-		hist[img_in.img[i]] ++;
-	}*/
 	
 	gpu_histogram_equalization(result.img, img_in.img, hist, img_size, grey_count);
-
-	//cudaMemcpy(result.img, cuda_img_out, sizeof(unsigned char) * result.w * result.h, cudaMemcpyDeviceToHost);
-    //histogram_equalization(result.img,img_in.img,hist,result.w*result.h, 256);
 
 	cudaFree(cuda_img_in);
 	cudaFree(cuda_img_out);
 	cudaFree(cuda_img_size);
-	//cudaFree(cuda_grey_count);
 	cudaFree(cuda_hist);
-	//free(hist);
 
 	return result;
 }
 
+
 PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 {
-    HSL_IMG hsl_med;
     PPM_IMG result;
-	PPM_IMG result2;
     
     unsigned char * l_equ;
 	unsigned char * temp_hsl_l;
 	float * temp;
-    int hist[256];
 
 	int * t_hist = (int *)malloc(sizeof(int) * 256);
 
@@ -416,36 +380,14 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 
 	cudaMemcpy(temp_hsl_l, gpu_hsl_img_l, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost);
 
-	/*for (int z = 0; z < img_size; z++) {
-		if (temp_hsl_l[z] != hsl_med.l[z]) {
-			printf("l Error at %d\n", z);
-		}
-	}
-	cudaMemcpy(temp, gpu_hsl_img_h, sizeof(float) * img_size, cudaMemcpyDeviceToHost);
-	for (int z = 0; z < img_size; z++) {
-		if (temp[z] != hsl_med.h[z]) {
-			printf("h Error at %d, %f should be %f\n", z, temp[z], hsl_med.h[z]);
-		}
-	}
-	cudaMemcpy(temp, gpu_hsl_img_s, sizeof(float) * img_size, cudaMemcpyDeviceToHost);
-	for (int z = 0; z < img_size; z++) {
-		if (temp[z] != hsl_med.s[z]) {
-			printf("s Error at %d\n", z);
-		}
-	}*/
-
 	cudaMemset(gpu_hist, 0, sizeof(int) * 256);
 
-    //histogram(hist, temp_hsl_l, hsl_med.height * hsl_med.width, 256);
 	gpu_histogram<<< block_count, MAXTHREADS >>>(gpu_hist, gpu_hsl_img_l, gpu_img_size);
 
 	cudaMemcpy(t_hist, gpu_hist, sizeof(int) * nbr_size, cudaMemcpyDeviceToHost);
-	//cudaMemcpy(temp_hsl_l, gpu_hsl_img_l, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost);
 
     gpu_histogram_equalization(l_equ, temp_hsl_l, t_hist, img_size, 256);
     
-    //free(temp_hsl_l);
-    //temp_hsl_l = l_equ;
 	cudaMemcpy(gpu_hsl_img_l, l_equ, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice);
 
 	gpu_hsl2rgb<<< block_count, MAXTHREADS >>>(gpu_hsl_img_h, gpu_hsl_img_s, gpu_hsl_img_l, gpu_img_out_r, gpu_img_out_g, gpu_img_out_b, img_size);
@@ -477,9 +419,6 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 	cudaFree(gpu_hsl_img_s);
 	cudaFree(gpu_hsl_img_l);
 
-    //free(hsl_med.h);
-    //free(hsl_med.s);
-    //free(hsl_med.l);
     return result;
 }
 
@@ -496,15 +435,12 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     int image_size = img_in.w * img_in.h;
 
     //device vars
-    //PPM_IMG* gpu_result;
     unsigned char * gpu_result_img_r = 0;
     unsigned char * gpu_result_img_g = 0;
     unsigned char * gpu_result_img_b = 0;
-    //PPM_IMG* gpu_img_in;
     unsigned char * gpu_img_in_img_r = 0;
     unsigned char * gpu_img_in_img_g = 0;
     unsigned char * gpu_img_in_img_b = 0;
-    //YUV_IMG* gpu_yuv_med;
     unsigned char * gpu_yuv_med_img_y = 0;
     unsigned char * gpu_yuv_med_img_u = 0;
     unsigned char * gpu_yuv_med_img_v = 0;
@@ -543,8 +479,6 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     gpu_rgb2yuv<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_img_in_img_r, gpu_img_in_img_g, gpu_img_in_img_b,
                                                 gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v);
 
-    //********************* done converting up to here
-
     //copy back to host
     HANDLE_ERROR( cudaMemcpy(yuv_med_img_u, gpu_yuv_med_img_u, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
     HANDLE_ERROR( cudaMemcpy(yuv_med_img_v, gpu_yuv_med_img_v, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
@@ -579,22 +513,10 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     //convert back to rgb
     gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v, 
                                                 gpu_result_img_r, gpu_result_img_g, gpu_result_img_b);
-	/*YUV_IMG img;
-	img.h = img_in.h;
-	img.w = img_in.w;
-	img.img_u = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
-	img.img_v = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
-	img.img_y = (unsigned char *)malloc(sizeof(unsigned char) * img.w * img.h);
-	memcpy(img.img_u, yuv_med_img_u, sizeof(unsigned char) * img.w * img.h);
-	memcpy(img.img_v, yuv_med_img_v, sizeof(unsigned char) * img.w * img.h);
-	memcpy(img.img_y, yuv_med_img_y, sizeof(unsigned char) * img.w * img.h);
-	*/
 
     result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_b = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
-
-	//result = yuv2rgb(img);
 
     //copy back to host
     HANDLE_ERROR( cudaMemcpy(result.img_r, gpu_result_img_r, sizeof(unsigned char)*image_size, cudaMemcpyDeviceToHost) );
@@ -616,8 +538,6 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
     return result;
 }
-
-
 
 
 //Convert RGB to YUV, all components in [0, 255]
@@ -643,6 +563,7 @@ __global__ void gpu_rgb2yuv(int* image_size, unsigned char* img_in_r, unsigned c
     }
 }
 
+
 __device__ unsigned char gpu_clip_rgb(int x) {
 	if(x > 255)
         return 255;
@@ -651,6 +572,7 @@ __device__ unsigned char gpu_clip_rgb(int x) {
 
     return (unsigned char)x;
 }
+
 
 //Convert YUV to RGB, all components in [0, 255]
 __global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned char* img_in_u, unsigned char* img_in_v,
@@ -669,22 +591,12 @@ __global__ void gpu_yuv2rgb(int* image_size, unsigned char* img_in_y, unsigned c
         gt  = (int)( y - 0.344*cb - 0.714*cr);
         bt  = (int)( y + 1.772*cb);
 
-        // img_out_r[i] = rt;
-        // img_out_g[i] = gt;
-        // img_out_b[i] = bt;
-
-        // img_out_r[i] = rt > 255 ? 255 : rt < 0 ? 0 : (unsigned char) rt;
-        // img_out_g[i] = gt > 255 ? 255 : gt < 0 ? 0 : (unsigned char) gt;
-        // img_out_b[i] = bt > 255 ? 255 : bt < 0 ? 0 : (unsigned char) bt;
-
-        /*img_out_r[i] = (rt&(~0xFF)) ? (unsigned char)(-rt)>>31 : (unsigned char) rt;
-        img_out_g[i] = (gt&(~0xFF)) ? (unsigned char)(-gt)>>31 : (unsigned char) gt;
-        img_out_b[i] = (bt&(~0xFF)) ? (unsigned char)(-bt)>>31 : (unsigned char) bt;*/
 		img_out_r[i] = gpu_clip_rgb(rt);
 		img_out_g[i] = gpu_clip_rgb(gt);
 		img_out_b[i] = gpu_clip_rgb(bt);
     }
 }
+
 
 __device__ float gpu_Hue_2_RGB( float v1, float v2, float vH )             //Function Hue_2_RGB
 {
@@ -696,17 +608,13 @@ __device__ float gpu_Hue_2_RGB( float v1, float v2, float vH )             //Fun
     return ( v1 );
 }
 
+
 __global__ void gpu_rgb2hsl(unsigned char * img_in_r, unsigned char * img_in_g, unsigned char * img_in_b,
 							float * img_out_h, float * img_out_s, unsigned char * img_out_l, int img_size)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     float H, S, L;
-    //HSL_IMG img_out;// = (HSL_IMG *)malloc(sizeof(HSL_IMG));
-    //img_out.h = (float *)malloc(img_in.w * img_in.h * sizeof(float));
-    //img_out.s = (float *)malloc(img_in.w * img_in.h * sizeof(float));
-    //img_out.l = (unsigned char *)malloc(img_in.w * img_in.h * sizeof(unsigned char));
-    
-    //for(i = 0; i < img_in.w*img_in.h; i ++){
+
 	if (i < img_size) {
         
         float var_r = ( (float)img_in_r[i]/255 );//Convert RGB to [0,1]
@@ -758,23 +666,14 @@ __global__ void gpu_rgb2hsl(unsigned char * img_in_r, unsigned char * img_in_g, 
         img_out_l[i] = (unsigned char)(L*255);
     }
     
-    //return img_out;
 }
+
 
 __global__ void gpu_hsl2rgb(float * img_in_h, float * img_in_s, unsigned char * img_in_l, 
 							unsigned char * img_out_r, unsigned char * img_out_g, unsigned char * img_out_b, int img_size)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
-   // PPM_IMG result;
-	//int img_size = img_in->width * img_in->height;
-    
-    //img_out->w = img_in->width;
-    //img_out->h = img_in->height;
-    //result.img_r = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    //result.img_g = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    //result.img_b = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
-    
-    //for(i = 0; i < img_in->width*img_in.height; i ++){
+
 	if (i < img_size) {
         float H = img_in_h[i];
         float S = img_in_s[i];
@@ -806,6 +705,4 @@ __global__ void gpu_hsl2rgb(float * img_in_h, float * img_in_s, unsigned char * 
         img_out_g[i] = g;
         img_out_b[i] = b;
     }
-
-    //return result;
 }
