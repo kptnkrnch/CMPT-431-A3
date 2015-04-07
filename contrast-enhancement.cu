@@ -9,14 +9,29 @@ PGM_IMG contrast_enhancement_g(PGM_IMG img_in)
 {
     PGM_IMG result;
     int hist[256];
+
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
     
     result.w = img_in.w;
     result.h = img_in.h;
     result.img = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
     
+    // cudaEventRecord(start,0);
     histogram(hist, img_in.img, img_in.h * img_in.w, 256);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\thistogram time: %fms\n", elapsedTime);
 	
     histogram_equalization(result.img,img_in.img,hist,result.w*result.h, 256);
+
+    //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
     return result;
 }
 
@@ -25,11 +40,23 @@ PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
 {
     YUV_IMG yuv_med;
     PPM_IMG result;
+
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
     
     unsigned char * y_equ;
     int hist[256];
     
+    // cudaEventRecord(start,0);
     yuv_med = rgb2yuv(img_in);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\trgb2yuv time: %fms\n", elapsedTime);
+
     y_equ = (unsigned char *)malloc(yuv_med.h*yuv_med.w*sizeof(unsigned char));
     
     histogram(hist, yuv_med.img_y, yuv_med.h * yuv_med.w, 256);
@@ -39,10 +66,20 @@ PPM_IMG contrast_enhancement_c_yuv(PPM_IMG img_in)
     free(yuv_med.img_y);
     yuv_med.img_y = y_equ;
     
+    // cudaEventRecord(start,0);
     result = yuv2rgb(yuv_med);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tyuv2rgb time: %fms\n", elapsedTime);
+
     free(yuv_med.img_y);
     free(yuv_med.img_u);
     free(yuv_med.img_v);
+
+        //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
     
     return result;
 }
@@ -52,11 +89,23 @@ PPM_IMG contrast_enhancement_c_hsl(PPM_IMG img_in)
 {
     HSL_IMG hsl_med;
     PPM_IMG result;
+
+        //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
     
     unsigned char * l_equ;
     int hist[256];
 
+    // cudaEventRecord(start,0);
     hsl_med = rgb2hsl(img_in);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\trgb2hsl time: %fms\n", elapsedTime);
+
     l_equ = (unsigned char *)malloc(hsl_med.height*hsl_med.width*sizeof(unsigned char));
 
     histogram(hist, hsl_med.l, hsl_med.height * hsl_med.width, 256);
@@ -65,10 +114,20 @@ PPM_IMG contrast_enhancement_c_hsl(PPM_IMG img_in)
     free(hsl_med.l);
     hsl_med.l = l_equ;
 
+    // cudaEventRecord(start,0);
     result = hsl2rgb(hsl_med);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\thsl2rgb time: %fms\n", elapsedTime);
+
     free(hsl_med.h);
     free(hsl_med.s);
     free(hsl_med.l);
+
+            //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
     return result;
 }
 
@@ -336,6 +395,12 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 	unsigned char * temp_hsl_l;
 	float * temp;
 
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
+
 	int * t_hist = (int *)malloc(sizeof(int) * 256);
 
 	int img_size = img_in.w * img_in.h;
@@ -374,7 +439,14 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
     //hsl_med = rgb2hsl(img_in);
+
+    //cudaEventRecord(start,0);
 	gpu_rgb2hsl<<< block_count, MAXTHREADS >>>(gpu_img_in_r, gpu_img_in_g, gpu_img_in_b, gpu_hsl_img_h, gpu_hsl_img_s, gpu_hsl_img_l, img_size);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_rgb2hsl time: %fms\n", elapsedTime);
+
     l_equ = (unsigned char *)malloc(img_size *sizeof(unsigned char));
 
 
@@ -382,7 +454,12 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 
 	cudaMemset(gpu_hist, 0, sizeof(int) * 256);
 
+    // cudaEventRecord(start,0);
 	gpu_histogram<<< block_count, MAXTHREADS >>>(gpu_hist, gpu_hsl_img_l, gpu_img_size);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_histogram time: %fms\n", elapsedTime);
 
 	cudaMemcpy(t_hist, gpu_hist, sizeof(int) * nbr_size, cudaMemcpyDeviceToHost);
 
@@ -390,7 +467,12 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
     
 	cudaMemcpy(gpu_hsl_img_l, l_equ, sizeof(unsigned char) * img_size, cudaMemcpyHostToDevice);
 
+    // cudaEventRecord(start,0);
 	gpu_hsl2rgb<<< block_count, MAXTHREADS >>>(gpu_hsl_img_h, gpu_hsl_img_s, gpu_hsl_img_l, gpu_img_out_r, gpu_img_out_g, gpu_img_out_b, img_size);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_hsl2rgb time: %fms\n", elapsedTime);
 
 	result.img_r = (unsigned char *)malloc(sizeof(unsigned char) * img_size);
 	result.img_g = (unsigned char *)malloc(sizeof(unsigned char) * img_size);
@@ -419,6 +501,10 @@ PPM_IMG gpu_contrast_enhancement_c_hsl(PPM_IMG img_in)
 	cudaFree(gpu_hsl_img_s);
 	cudaFree(gpu_hsl_img_l);
 
+    //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
+
     return result;
 }
 
@@ -433,6 +519,12 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     unsigned char * y_equ;
     int hist[256];
     int image_size = img_in.w * img_in.h;
+
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
 
     //device vars
     unsigned char * gpu_result_img_r = 0;
@@ -476,8 +568,13 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
 
 
     //convert to yuv
+    // cudaEventRecord(start,0);
     gpu_rgb2yuv<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_img_in_img_r, gpu_img_in_img_g, gpu_img_in_img_b,
                                                 gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_rgb2yuv time: %fms\n", elapsedTime);
 
     //copy back to host
     HANDLE_ERROR( cudaMemcpy(yuv_med_img_u, gpu_yuv_med_img_u, sizeof(unsigned char) * image_size, cudaMemcpyDeviceToHost) );
@@ -511,8 +608,13 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     HANDLE_ERROR( cudaMemcpy(gpu_yuv_med_img_y, yuv_med_img_y, sizeof(unsigned char) * image_size, cudaMemcpyHostToDevice) );
     
     //convert back to rgb
+    // cudaEventRecord(start,0);
     gpu_yuv2rgb<<< block_count, MAXTHREADS >>>(gpu_image_size, gpu_yuv_med_img_y, gpu_yuv_med_img_u, gpu_yuv_med_img_v, 
                                                 gpu_result_img_r, gpu_result_img_g, gpu_result_img_b);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_yuv2rgb time: %fms\n", elapsedTime);
 
     result.img_r = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
     result.img_g = (unsigned char *)malloc(sizeof(unsigned char)*image_size);
@@ -535,6 +637,10 @@ PPM_IMG gpu_contrast_enhancement_c_yuv(PPM_IMG img_in)
     HANDLE_ERROR( cudaFree(gpu_yuv_med_img_y) );
     HANDLE_ERROR( cudaFree(gpu_yuv_med_img_u) );
     HANDLE_ERROR( cudaFree(gpu_yuv_med_img_v) );
+
+    //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
 
     return result;
 }

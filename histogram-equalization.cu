@@ -18,6 +18,13 @@ void histogram(int * hist_out, unsigned char * img_in, int img_size, int nbr_bin
 
 void histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin){
+    
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
+
     int *lut = (int *)malloc(sizeof(int)*nbr_bin);
     int i, cdf, min, d;
     /* Construct the LUT by calculating the CDF */
@@ -27,6 +34,8 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
     while(min == 0){
         min = hist_in[i++];
     }
+
+    // cudaEventRecord(start,0);
     d = img_size - min;
     for(i = 0; i < nbr_bin; i ++){
         cdf += hist_in[i];
@@ -37,7 +46,12 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         }
         
     }
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\thistogram_equalization_lutcalc time: %fms\n", elapsedTime);
     
+    // cudaEventRecord(start,0);
     /* Get the result image */
     for(i = 0; i < img_size; i ++){
         if(lut[img_in[i]] > 255){
@@ -46,8 +60,15 @@ void histogram_equalization(unsigned char * img_out, unsigned char * img_in,
         else{
             img_out[i] = (unsigned char)lut[img_in[i]];
         }
-        
     }
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\thistogram_equalization_imgoutcalc time: %fms\n", elapsedTime);
+
+    // //TODO remove
+    // cudaEventDestroy(start);
+    // cudaEventDestroy(end);
 }
 
 __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_size){
@@ -81,6 +102,14 @@ __global__ void gpu_histogram(int * hist_out, unsigned char * img_in, int * img_
 
 void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in, 
                             int * hist_in, int img_size, int nbr_bin){
+
+    //TODO remove
+    // cudaEvent_t start, end;
+    // float elapsedTime;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&end);
+
+
 	int i = 0;
 	int * lut = (int*)malloc(sizeof(int) * nbr_bin);
     int *g_lut = 0;
@@ -126,12 +155,23 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 	HANDLE_ERROR( cudaMemset(g_lut, 1, sizeof(int) * nbr_bin) );
 	HANDLE_ERROR( cudaMemcpy(g_cdf, cdf, sizeof(int) * nbr_bin, cudaMemcpyHostToDevice) );
 
+    //cudaEventRecord(start,0);
 	gpu_histogram_equalization_lutcalc<<< 1, MAXTHREADS >>>(g_cdf, g_hist_in, g_lut, g_img_size, g_nbr_bin, g_min);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_histogram_equalization_lutcalc time: %fms\n", elapsedTime);
 
 	HANDLE_ERROR( cudaMemcpy(lut, g_lut, sizeof(int) * nbr_bin, cudaMemcpyDeviceToHost) );
 
 	int block_count = (int)ceil((float)img_size / MAXTHREADS);
+
+    //cudaEventRecord(start,0);
 	gpu_histogram_equalization_imgoutcalc<<< block_count, MAXTHREADS >>>(g_img_out, g_img_in, g_lut, g_img_size);
+    // cudaEventRecord(end,0);
+    // cudaEventSynchronize(end);
+    // cudaEventElapsedTime(&elapsedTime, start, end);
+    // printf("\tgpu_histogram_equalization_imgoutcalc time: %fms\n", elapsedTime);
 
 	HANDLE_ERROR( cudaMemcpy(img_out, g_img_out, sizeof(unsigned char) * img_size, cudaMemcpyDeviceToHost) );
 	/*for(i = 0; i < img_size; i ++){
@@ -152,6 +192,10 @@ void gpu_histogram_equalization(unsigned char * img_out, unsigned char * img_in,
 	cudaFree(g_hist_in);
 	cudaFree(g_img_size);
 	cudaFree(g_nbr_bin);
+
+    //TODO remove
+    //cudaEventDestroy(start);
+    //cudaEventDestroy(end);
 }
 
 __global__ void gpu_histogram_equalization_lutcalc(int * cdf,
