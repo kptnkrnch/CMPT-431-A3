@@ -24,5 +24,5 @@ Who did what:
 		-ported the gpu_yuv2rgb function
 		-ported the gpu_rgb2yuv function
 		-port main test gpu_contrast_enhancement_c_yuv
-		-times.xlsx data from test server
+		-times.xlsx data from test server (Kepler)
 		-wrote seconds analysis section of the report
