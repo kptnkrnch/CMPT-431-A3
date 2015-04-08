@@ -14,3 +14,10 @@ Who did what:
 		-ported the gpu_rgb2hsl function
 		-ported the gpu_Hue_2_RGB function
 		-ported the gpu_clip_rgb function
+
+	Adam Penner (adpenner):
+		-Added timers for accurate ms timing
+		-ported the gpu_yuv2rgb function
+		-ported te gpu_rgb2yuv function
+		-port main test gpu_contrast_enhancement_c_yuv
+		-times.xlsx data from test server
