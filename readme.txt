@@ -16,7 +16,7 @@ Who did what:
 		-ported the gpu_rgb2hsl function
 		-ported the gpu_Hue_2_RGB function
 		-ported the gpu_clip_rgb function
-		-ran tests using GTX 675m (Fermi)
+		-ran tests using GTX 675m (Fermi) (on other test machine(laptop)/not the server machine)
 		-wrote first analysis section of the report
 
 	Adam Penner (adpenner):
